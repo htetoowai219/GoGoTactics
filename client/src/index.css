@@ -1,0 +1,179 @@
+@import "tailwindcss";
+
+@theme {
+  /* Base Comic Canvas & Ink */
+  --color-background: #faf7ee;
+  --color-surface: #fffdf6;
+  --color-card: #ffffff;
+  --color-elevated: #f3efe0;
+  --color-border: #0d0d0d;
+  --color-foreground: #0d0d0d;
+  --color-muted: #6b6553;
+  --color-ink-gray: #e2dfd2;
+
+  /* High-Impact Pop Colors */
+  --color-primary: #ffe600;
+  --color-primary-hover: #ffd900;
+  --color-accent: #00e5ff;
+  --color-gold: #facc15;
+  --color-danger: #ff0055;
+  --color-success: #4ade80;
+
+  /* Comic Hero Gold Costs */
+  --color-tier-1: #d1d5db;
+  --color-tier-2: #4ade80;
+  --color-tier-3: #38bdf8;
+  --color-tier-4: #c084fc;
+  --color-tier-5: #facc15;
+
+  /* Hard comic drop shadows */
+  --shadow-comic-sm: 2px 2px 0px #0d0d0d;
+  --shadow-comic: 4px 4px 0px #0d0d0d;
+  --shadow-comic-lg: 8px 8px 0px #0d0d0d;
+
+  /* Override default scale so legacy utilities stay hard-edged */
+  --shadow-sm: 2px 2px 0px #0d0d0d;
+  --shadow: 4px 4px 0px #0d0d0d;
+  --shadow-md: 4px 4px 0px #0d0d0d;
+  --shadow-lg: 6px 6px 0px #0d0d0d;
+  --shadow-xl: 8px 8px 0px #0d0d0d;
+
+  /* Sharp paper-cut radii everywhere */
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+
+  --font-sans: "Comic Neue", "Chalkboard", "Comic Sans MS", sans-serif;
+  --font-display: "Bangers", "Impact", sans-serif;
+  --font-mono: "Space Mono", "Courier New", monospace;
+
+  --animate-fade-in: fade-in 0.25s ease-out;
+  --animate-pop: pop 0.18s ease-out;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pop {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.25) rotate(-3deg);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-background text-foreground font-sans antialiased;
+  background-image: radial-gradient(rgba(13, 13, 13, 0.06) 1px, transparent 1px);
+  background-size: 14px 14px;
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(255, 230, 0, 0.7);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: #0d0d0d;
+  border: 2px solid #faf7ee;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #333;
+}
+
+/* Comic title text — Bangers caps with ink outline */
+.font-display {
+  letter-spacing: 0.04em;
+}
+
+.text-gradient {
+  color: #0d0d0d;
+  text-shadow:
+    2px 2px 0 #ffe600,
+    4px 4px 0 rgba(13, 13, 13, 0.9);
+}
+
+.card-hover {
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    border-color 0.12s ease;
+}
+.card-hover:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px #0d0d0d;
+}
+
+/* Speech bubble callout for synergies / hints */
+.speech-bubble {
+  position: relative;
+  border: 2px solid #0d0d0d;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 2px 2px 0px #0d0d0d;
+}
+.speech-bubble::after,
+.speech-bubble::before {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 18px;
+  border-width: 10px 10px 0;
+  border-style: solid;
+  border-color: #0d0d0d transparent;
+}
+.speech-bubble::before {
+  bottom: -6px;
+  border-color: #ffffff transparent;
+  z-index: 1;
+}
+
+.prose-gogo h1,
+.prose-gogo h2,
+.prose-gogo h3 {
+  @apply font-display tracking-wide uppercase mt-4 mb-2 text-foreground;
+}
+.prose-gogo p {
+  @apply mb-3 leading-relaxed;
+}
+.prose-gogo ul {
+  @apply list-disc pl-5 mb-3 space-y-1;
+}
+.prose-gogo ol {
+  @apply list-decimal pl-5 mb-3 space-y-1;
+}
+.prose-gogo a {
+  @apply text-foreground underline decoration-[3px] decoration-accent underline-offset-2;
+}
+.prose-gogo code {
+  @apply bg-elevated border border-border px-1.5 py-0.5 text-sm font-mono;
+}
+.prose-gogo blockquote {
+  @apply border-l-4 border-foreground pl-3 italic text-muted;
+}
+.prose-gogo strong {
+  @apply text-foreground font-bold;
+}
