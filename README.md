@@ -2,6 +2,10 @@
 
 Community-driven lineup platform for **Magic Chess: Go Go** — browse, build, and share tactical lineups with a visual board editor, ratings, comments, follows, and moderation tooling.
 
+<p align="center">
+  <img src="./assets/demo.png" alt="GoGoTactics — homepage with trending lineups on the comic-book UI" width="100%" />
+</p>
+
 > Fan-made demo project. All game data (seasons, commanders, heroes, synergies, equipment) is sample content rendered dynamically — no real game assets are used or distributed.
 
 ## Tech Stack
