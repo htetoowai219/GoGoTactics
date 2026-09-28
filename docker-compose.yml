@@ -1,0 +1,99 @@
+# GoGoTactics — full local stack (MongoDB + API + web client).
+#
+#   cp .env.example .env      # optional, every value has a working default
+#   docker compose up -d --build
+#   docker compose run --rm seed      # optional: load the sample data
+#   open http://localhost:8080
+#
+# The three services are the same independently deployable apps that live in
+# ./server and ./client — nothing here is required outside Docker.
+
+name: gogotactics
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME:-gogotactics}
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--quiet",
+          "--eval",
+          "db.adminCommand('ping').ok",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  server:
+    build:
+      context: ./server
+      target: runtime
+    image: gogotactics-server
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      HOST: 0.0.0.0
+      PORT: 5000
+      MONGODB_URI: mongodb://mongo:27017/${MONGO_DB_NAME:-gogotactics}
+      JWT_SECRET: ${JWT_SECRET:-local-only-change-me-before-deploying}
+      JWT_EXPIRES_IN_DAYS: ${JWT_EXPIRES_IN_DAYS:-7}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:8080}
+      CLIENT_URLS: ${CLIENT_URLS:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUST_PROXY: "true"
+      REQUIRE_CLOUDINARY: ${REQUIRE_CLOUDINARY:-false}
+      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      TRENDING_GRAVITY: ${TRENDING_GRAVITY:-1.5}
+    ports:
+      - "${SERVER_PORT:-5000}:5000"
+
+  client:
+    build:
+      context: ./client
+      target: runtime
+    image: gogotactics-client
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      # Same-origin API calls: nginx forwards /api to the API service, so the
+      # browser never makes a cross-origin request and cookies just work.
+      API_URL: /api/v1
+      API_PROXY_TARGET: http://server:5000
+      SITE_URL: ${SITE_URL:-http://localhost:8080}
+    ports:
+      - "${CLIENT_PORT:-8080}:80"
+
+  # One-shot sample-data seeder. Not started by `up` — run it explicitly:
+  #   docker compose run --rm seed
+  seed:
+    build:
+      context: ./server
+      target: seed
+    image: gogotactics-server:seed
+    profiles: ["seed"]
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/${MONGO_DB_NAME:-gogotactics}
+
+volumes:
+  mongo-data:

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { siteUrl as resolveSiteUrl } from "../lib/runtimeConfig";
 
 interface SeoProps {
   title: string;
@@ -39,8 +40,7 @@ export function Seo({
   pathname = "",
 }: SeoProps) {
   useEffect(() => {
-    const siteUrl =
-      import.meta.env.VITE_SITE_URL || window.location.origin;
+    const siteUrl = resolveSiteUrl();
     const fullTitle =
       title === "GoGoTactics"
         ? title
