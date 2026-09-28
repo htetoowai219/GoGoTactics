@@ -12,7 +12,7 @@ export function signToken(userId: Types.ObjectId | string): string {
 export function setAuthCookie(res: Response, token: string): void {
   res.cookie("token", token, {
     httpOnly: true,
-    secure: env.NODE_ENV === "production",
+    secure: env.COOKIE_SECURE ?? env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge: env.JWT_EXPIRES_IN_DAYS * 24 * 60 * 60 * 1000,
   });

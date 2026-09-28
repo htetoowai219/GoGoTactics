@@ -1,14 +1,15 @@
 import app from "./app.js";
-import env from "./config/env.js";
+import env, { allowedOrigins } from "./config/env.js";
 import { connectDatabase, disconnectDatabase } from "./config/db.js";
 
 async function bootstrap(): Promise<void> {
   await connectDatabase();
 
-  const server = app.listen(env.PORT, () => {
+  const server = app.listen(env.PORT, env.HOST, () => {
     console.log(
-      `GoGoTactics API running on http://localhost:${env.PORT} (${env.NODE_ENV})`,
+      `GoGoTactics API running on http://${env.HOST}:${env.PORT} (${env.NODE_ENV})`,
     );
+    console.log(`Allowed client origins: ${allowedOrigins.join(", ")}`);
   });
 
   const shutdown = async (signal: string) => {

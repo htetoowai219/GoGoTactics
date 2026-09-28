@@ -3,7 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import mongoSanitize from "express-mongo-sanitize";
-import env from "./config/env.js";
+import env, { allowedOrigins } from "./config/env.js";
 import { apiLimiter } from "./middleware/rateLimiters.js";
 import {
   notFoundHandler,
@@ -13,7 +13,8 @@ import routes from "./routes/v1/index.js";
 
 const app = express();
 
-app.set("trust proxy", 1);
+app.disable("x-powered-by");
+app.set("trust proxy", env.TRUST_PROXY ? 1 : false);
 
 app.use(
   helmet({
@@ -23,7 +24,10 @@ app.use(
 
 app.use(
   cors({
-    origin: [env.CLIENT_URL, "http://localhost:5173", "http://127.0.0.1:5173"],
+    origin(origin, callback) {
+      if (!origin || env.ALLOW_ANY_ORIGIN) return callback(null, true);
+      return callback(null, allowedOrigins.includes(origin));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   }),
