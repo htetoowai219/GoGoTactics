@@ -10,6 +10,7 @@ import {
   User as UserIcon,
   Settings,
   Plus,
+  BookOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
@@ -47,7 +48,7 @@ export function Navbar() {
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `px-3 py-2 rounded-none text-sm font-bold uppercase tracking-wide transition-all ${
       isActive
-        ? "text-foreground bg-primary border-2 border-foreground shadow-comic-sm"
+        ? "text-bright-ink bg-primary border-2 border-foreground shadow-comic-sm"
         : "text-muted hover:text-foreground hover:bg-elevated"
     }`;
 
@@ -55,7 +56,7 @@ export function Navbar() {
     <header className="sticky top-0 z-40 border-b-[3px] border-foreground bg-background">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4">
         <Link to="/" className="flex items-center gap-2 shrink-0">
-          <span className="grid h-9 w-9 place-items-center rounded-none border-2 border-foreground bg-primary shadow-comic-sm -rotate-3 transition-transform hover:rotate-0">
+          <span className="grid h-9 w-9 place-items-center rounded-none border-2 border-foreground bg-primary text-bright-ink shadow-comic-sm -rotate-3 transition-transform hover:rotate-0">
             <Swords className="h-5 w-5" strokeWidth={2.5} />
           </span>
           <span className="hidden sm:block font-display text-xl uppercase tracking-wide">
@@ -80,6 +81,10 @@ export function Navbar() {
               Admin
             </NavLink>
           )}
+          <NavLink to="/how-to-use" className={navLinkClass}>
+            <BookOpen className="inline h-4 w-4 mr-1.5 -mt-0.5" />
+            How to use
+          </NavLink>
         </nav>
 
         <div className="flex-1 flex justify-center px-2 min-w-0">
@@ -155,6 +160,9 @@ export function Navbar() {
         <div className="md:hidden border-t border-border px-4 py-3 space-y-1 animate-fade-in">
           <NavLink to="/lineups" className={navLinkClass} onClick={() => setMobileOpen(false)}>
             Lineups
+          </NavLink>
+          <NavLink to="/how-to-use" className={navLinkClass} onClick={() => setMobileOpen(false)}>
+            How to use
           </NavLink>
           {user && (
             <NavLink to="/saved" className={navLinkClass} onClick={() => setMobileOpen(false)}>

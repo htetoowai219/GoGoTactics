@@ -2,6 +2,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
+import { WelcomeDialog } from "../components/WelcomeDialog";
 
 export function RootLayout() {
   const { pathname } = useLocation();
@@ -17,6 +18,7 @@ export function RootLayout() {
         <Outlet />
       </main>
       <Footer />
+      <WelcomeDialog />
     </div>
   );
 }

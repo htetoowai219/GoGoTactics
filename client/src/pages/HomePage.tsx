@@ -146,7 +146,7 @@ export default function HomePage() {
           <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
             <Link
               to="/lineups"
-              className="inline-flex h-11 items-center gap-2 rounded-none border-2 border-foreground bg-primary px-6 font-bold uppercase tracking-wide shadow-comic transition-all hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-comic-lg active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+              className="inline-flex h-11 items-center gap-2 rounded-none border-2 border-foreground bg-primary px-6 font-bold uppercase tracking-wide text-bright-ink shadow-comic transition-all hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-comic-lg active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
             >
               Browse lineups <ArrowRight className="h-4 w-4" strokeWidth={3} />
             </Link>

@@ -9,7 +9,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-foreground shadow-comic hover:bg-primary-hover hover:shadow-comic-lg hover:-translate-x-[1px] hover:-translate-y-[1px]",
+          "bg-primary text-bright-ink shadow-comic hover:bg-primary-hover hover:shadow-comic-lg hover:-translate-x-[1px] hover:-translate-y-[1px]",
         secondary:
           "bg-elevated text-foreground shadow-comic-sm hover:bg-card hover:shadow-comic",
         outline:
@@ -18,7 +18,7 @@ const buttonVariants = cva(
           "border-transparent shadow-none text-muted hover:text-foreground hover:bg-elevated",
         danger:
           "bg-danger text-white shadow-comic hover:brightness-110 hover:shadow-comic-lg",
-        gold: "bg-gold text-foreground shadow-comic hover:brightness-105 hover:shadow-comic-lg",
+        gold: "bg-gold text-bright-ink shadow-comic hover:brightness-105 hover:shadow-comic-lg",
         link: "border-transparent shadow-none bg-transparent underline underline-offset-4 hover:bg-transparent font-bold normal-case tracking-normal",
       },
       size: {

@@ -129,12 +129,12 @@ GoGoTactics/
 │       ├── api/             # Axios instance + typed endpoint helpers
 │       ├── lib/             # Utils + runtime config resolver
 │       ├── components/      # Shared UI (cards, comments, editor states)
-│       │   └── ui/          # Primitives (button, dialog, select, tabs…)
+│       │   └── ui/          # Primitives (button, dialog, select, tabs, checkbox…)
 │       ├── features/
 │       │   └── lineups/editor/  # Board editor, lineup state
 │       ├── layouts/         # RootLayout, AdminLayout, route guards
-│       ├── pages/           # Route pages (+ admin/)
-│       ├── stores/          # Zustand auth store
+│       ├── pages/           # Route pages (+ admin/, incl. HowToUsePage)
+│       ├── stores/          # Zustand stores (auth, theme)
 │       └── types/           # Shared TypeScript interfaces
 ├── server/                  # Express API (self-contained, independently deployable)
 │   ├── Dockerfile           # build → seed (one-shot) → prod-deps → runtime
@@ -435,6 +435,9 @@ All scripts run inside `client/` or `server/` — nothing runs from the repo roo
 - **Lineup detail** — interactive board preview, hero equipment & notes, synergy thresholds, strategy sections (early/mid/late/economy/leveling), star ratings, threaded comments with likes, share buttons
 - **Profiles** — bios, avatars, follow system, published lineups
 - **Search** — debounced typeahead across lineups/heroes/commanders/synergies/users
+- **How to use** (`/how-to-use`) — in-app manual: finding comps, reading a board, the full editor flow, interacting (ratings/comments/saves), accounts, appearance and etiquette; linked from the navbar and footer
+- **Appearance** — Light / Dark / System theme switcher in the footer, defaulting to the OS preference and remembered per browser (see [Theming](#theming))
+- **First-visit welcome** — a short intro dialog on the homepage with a link to the manual and a "Don't show this again" checkbox
 
 ### Authenticated
 - Lineup builder: pick season → mode (dynamic board size) → commanders & gogo cards → place heroes via drag-and-drop → assign equipment → auto-computed synergies → strategy markdown → publish or save draft
@@ -446,6 +449,31 @@ All scripts run inside `client/` or `server/` — nothing runs from the repo roo
 - User management: ban/unban
 - Report queue: resolve/dismiss with notes
 - **Game data manager**: CRUD with Cloudinary image uploads for seasons, game modes (board size!), commanders, heroes, synergies, equipment, gogo cards — including batch delete; no code changes needed to add new content
+
+### Theming
+
+The client ships three appearance options — **Light**, **Dark** and **System** —
+exposed as a radio group in the footer (`client/src/components/ThemeSwitcher.tsx`).
+
+- **System** is the default: with no stored preference the app follows
+  `prefers-color-scheme` and reacts live to OS changes.
+- The choice is persisted per browser in `localStorage` under
+  `gogotactics-theme` and applied to `<html>` as a `dark` class plus
+  `color-scheme`, so form controls and scrollbars match.
+- `client/index.html` contains a tiny pre-paint script that sets the class
+  before React mounts, so there is no flash of the wrong theme.
+- Dark mode keeps the comic identity: the yellow/cyan/gold/green pop colours are
+  unchanged, shadows, halftone and speech bubbles were retuned, and text sitting
+  on bright fills uses the dedicated `text-bright-ink` colour.
+- Colours are defined once as CSS variables in `client/src/index.css`
+  (`--c-background`, `--c-foreground`, `--c-card`, …) and consumed by Tailwind
+  via `@theme inline`; dark mode is a class-based `@custom-variant`.
+
+The welcome dialog appears on the **homepage only**, once per browser on a
+first visit. Ticking **"Don't show this again"** stores
+`gogotactics-welcome-dismissed`; dismissing it without ticking leaves it to
+appear again on the next visit. Clear both keys in devtools to restore the
+default behaviour.
 
 ## API Overview
 
@@ -557,6 +585,50 @@ Auth uses httpOnly cookie `token` (7-day expiry). Client sends `withCredentials`
 - Added one-command quick start, a full Docker guide, per-command reference,
   environment variable tables for both apps, independent deployment recipes for
   each app, Docker-aware troubleshooting entries, and this changelog.
+
+**Client — appearance: light/dark/system theme, in-app manual, first-visit welcome**
+
+**Theming**
+
+- Added a **Light / Dark / System** theme switcher to the footer
+  (`client/src/components/ThemeSwitcher.tsx`) — a labelled `radiogroup` with an
+  `aria-live` announcement of the active theme.
+- Added `client/src/stores/themeStore.ts`: preference (`light` | `dark` |
+  `system`) + resolved theme, persisted in `localStorage` as
+  `gogotactics-theme`, with a live `prefers-color-scheme` listener. Unset or
+  unrecognised values fall back to **system**.
+- `client/src/main.tsx` calls `initTheme()` before the first render; a
+  pre-paint snippet in `client/index.html` sets the `dark` class and
+  `theme-color` meta earlier still, preventing a flash of the wrong theme.
+- Converted the neutral palette in `client/src/index.css` into CSS variables
+  (`--c-*`) consumed through `@theme inline`, added a class-based
+  `@custom-variant dark`, and retuned dark-mode comic shadows, halftone,
+  scrollbars, speech bubbles and hero gradients.
+- Introduced a `bright-ink` colour for text on bright yellow/cyan/gold/green
+  fills, and applied it across buttons, badges, tabs, dialogs, the navbar, the
+  admin layout and the board so every pop colour keeps AA contrast in dark mode.
+- Sonner toasts now follow the resolved theme instead of being hardcoded dark.
+
+**In-app manual and onboarding**
+
+- Added `client/src/pages/HowToUsePage.tsx` (`/how-to-use`, lazily loaded): a
+  seven-part manual — finding comps, reading a board, building a lineup,
+  interacting, accounts, appearance and etiquette — with a sticky table of
+  contents, deep-linkable sections and calls to action.
+- Linked the manual from the navbar (desktop + mobile menu) and the footer.
+- Added `client/src/components/WelcomeDialog.tsx`, mounted in `RootLayout`: a
+  first-visit introduction with quick highlights, a real link to the manual, and
+  a **"Don't show this again"** checkbox, shown on the **homepage only**. Ticking
+  it stores `gogotactics-welcome-dismissed`; dismissing without ticking shows it
+  again next visit. Navigating away from the homepage closes it.
+- Added a `checkbox` UI primitive (`client/src/components/ui/checkbox.tsx`) on
+  top of the already-installed `@radix-ui/react-checkbox`.
+
+**Docs**
+
+- Documented the theme system (keys, precedence, tokens, how to reset) and the
+  new manual/welcome features in the feature list, project structure and this
+  changelog.
 
 ---
 

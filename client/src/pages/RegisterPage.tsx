@@ -33,7 +33,7 @@ export default function RegisterPage() {
     <div className="mx-auto max-w-sm">
       <Seo title="Sign up" description="Create a GoGoTactics account" pathname="/register" />
       <div className="mb-8 text-center">
-        <span className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-none border-[3px] border-foreground bg-primary shadow-comic rotate-2">
+        <span className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-none border-[3px] border-foreground bg-primary text-bright-ink shadow-comic rotate-2">
           <Swords className="h-6 w-6" />
         </span>
         <h1 className="text-2xl font-bold">Join the community</h1>

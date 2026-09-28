@@ -111,7 +111,7 @@ export default function ProfilePage() {
             <span><strong className="text-foreground">{user.followingCount}</strong> following</span>
             <span><strong className="text-foreground">{user.lineupsCount ?? 0}</strong> lineups</span>
             {user.role === "admin" && (
-              <span className="rounded bg-primary px-1.5 py-0.5 font-bold uppercase border-2 border-foreground">admin</span>
+              <span className="rounded bg-primary px-1.5 py-0.5 font-bold uppercase text-bright-ink border-2 border-foreground">admin</span>
             )}
           </p>
         </div>

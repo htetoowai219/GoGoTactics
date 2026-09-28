@@ -35,7 +35,7 @@ export default function LoginPage() {
     <div className="mx-auto max-w-sm">
       <Seo title="Log in" description="Log in to GoGoTactics" pathname="/login" />
       <div className="mb-8 text-center">
-        <span className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-none border-[3px] border-foreground bg-primary shadow-comic -rotate-3">
+        <span className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-none border-[3px] border-foreground bg-primary text-bright-ink shadow-comic -rotate-3">
           <Swords className="h-6 w-6" />
         </span>
         <h1 className="text-2xl font-bold">Welcome back</h1>
