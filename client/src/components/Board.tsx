@@ -46,7 +46,7 @@ export function HeroToken({
     >
       <div
         className="relative h-full w-full overflow-hidden rounded-full border-[3px] border-foreground bg-surface"
-        style={rainbow ? { borderColor: "#0d0d0d" } : { borderColor: "#0d0d0d", boxShadow: `inset 0 0 0 2px ${color}` }}
+        style={rainbow ? { borderColor: "var(--color-foreground)" } : { borderColor: "var(--color-foreground)", boxShadow: `inset 0 0 0 2px ${color}` }}
       >
         {hero?.image ? (
           <img
@@ -65,7 +65,7 @@ export function HeroToken({
         )}
       </div>
       <span
-        className="absolute -bottom-1 left-1/2 z-10 -translate-x-1/2 rounded-none border-2 border-foreground px-1 text-[9px] font-black leading-tight text-foreground"
+        className="absolute -bottom-1 left-1/2 z-10 -translate-x-1/2 rounded-none border-2 border-foreground px-1 text-[9px] font-black leading-tight text-bright-ink"
         style={{ backgroundColor: color }}
       >
         {hero?.cost ?? "?"}

@@ -64,18 +64,41 @@ container entrypoint regenerates on every boot.
 | `npm run preview`  | Serve the production build           |
 | `npm run typecheck`| TypeScript only                      |
 
+## Theming
+
+Three appearance options — **Light**, **Dark**, **System** — in the footer
+(`src/components/ThemeSwitcher.tsx`).
+
+| Key                            | Meaning                                                         |
+| ------------------------------ | --------------------------------------------------------------- |
+| `gogotactics-theme`            | `light` \| `dark` \| `system`; unset falls back to `system`      |
+| `gogotactics-welcome-dismissed`| `true` once the homepage welcome dialog's "Don't show again" is ticked |
+
+- `src/stores/themeStore.ts` holds the preference and the resolved theme,
+  persists it to `localStorage`, and listens to `prefers-color-scheme` so
+  **system** follows the OS live.
+- The `dark` class is put on `<html>` together with `style.colorScheme` and the
+  `theme-color` meta; a pre-paint snippet in `index.html` does this before React
+  mounts so the correct theme is painted immediately.
+- Colours live as CSS variables in `src/index.css` (`--c-background`,
+  `--c-foreground`, `--c-card`, …) and are mapped into Tailwind with
+  `@theme inline`; dark mode is a class-based `@custom-variant`.
+- `text-bright-ink` is the text colour for bright yellow/cyan/gold/green fills.
+
+Clear both `localStorage` keys in devtools to get back to the defaults.
+
 ## Structure
 
 ```
 src/
 ├── api/                  # Axios instance + typed endpoint helpers
 ├── lib/                  # Utils + runtime config resolver
-├── components/           # Shared UI (board, cards, comments)
-│   └── ui/               # Primitives (button, dialog, select, tabs…)
+├── components/           # Shared UI (board, cards, comments, theme switcher)
+│   └── ui/               # Primitives (button, dialog, select, tabs, checkbox…)
 ├── features/lineups/editor/  # Interactive lineup builder
 ├── layouts/              # RootLayout, AdminLayout, route guards
-├── pages/                # Route pages (+ admin/)
-├── stores/               # Zustand auth store
+├── pages/                # Route pages (+ admin/, incl. HowToUsePage)
+├── stores/               # Zustand stores (auth, theme)
 └── types/                # Shared interfaces
 
 nginx/                    # nginx server-block templates (static / api-proxy)

@@ -532,7 +532,7 @@ export function LineupBuilder({
         </Select>
 
         <span className="ml-auto flex items-center gap-2 text-sm">
-          <span className="rounded-none bg-primary px-2.5 py-1 font-bold uppercase border-2 border-foreground shadow-comic-sm">
+          <span className="rounded-none bg-primary px-2.5 py-1 font-bold uppercase text-bright-ink border-2 border-foreground shadow-comic-sm">
             {Object.keys(state.placements).length}/{(gameData?.heroes ?? []).length > 0 ? heroesOnBoardCap(rows, cols) : "?"} on board
           </span>
         </span>

@@ -89,7 +89,7 @@ export function LineupCard({ lineup, onToggleSave }: LineupCardProps) {
           {lineup.season?.name}
         </span>
         {lineup.featured && (
-          <span className="absolute right-2 top-2 -rotate-2 rounded-none border-2 border-foreground bg-gold px-2 py-0.5 font-display text-xs uppercase tracking-wide">
+          <span className="absolute right-2 top-2 -rotate-2 rounded-none border-2 border-foreground bg-gold px-2 py-0.5 font-display text-xs uppercase tracking-wide text-bright-ink">
             ★ Featured
           </span>
         )}

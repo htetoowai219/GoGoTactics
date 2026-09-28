@@ -66,7 +66,7 @@ export function AdminLayout() {
                 cn(
                   "flex items-center gap-3 rounded-none px-3 py-2.5 text-sm font-bold uppercase tracking-wide transition-all",
                   isActive
-                    ? "bg-primary text-foreground border-2 border-foreground shadow-comic-sm"
+                    ? "bg-primary text-bright-ink border-2 border-foreground shadow-comic-sm"
                     : "text-muted hover:bg-elevated hover:text-foreground",
                 )
               }

@@ -7,6 +7,7 @@ import { RootLayout } from "./layouts/RootLayout";
 import { AdminLayout } from "./layouts/AdminLayout";
 import { ProtectedRoute, AdminRoute } from "./layouts/guards";
 import { useInitAuth } from "./hooks/useAuth";
+import { useThemeStore } from "./stores/themeStore";
 
 const HomePage = lazy(() => import("./pages/HomePage"));
 const LineupsExplorerPage = lazy(() => import("./pages/LineupsExplorerPage"));
@@ -20,6 +21,7 @@ const SavedPage = lazy(() => import("./pages/SavedPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const HowToUsePage = lazy(() => import("./pages/HowToUsePage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 
 const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage"));
@@ -59,6 +61,7 @@ function AppRoutes() {
           <Route path="users/:username" element={<ProfilePage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
+          <Route path="how-to-use" element={<HowToUsePage />} />
 
           <Route element={<ProtectedRoute />}>
             <Route path="create-lineup" element={<CreateLineupPage />} />
@@ -85,21 +88,13 @@ function AppRoutes() {
 }
 
 export default function App() {
+  const theme = useThemeStore((s) => s.resolved);
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AppRoutes />
-        <Toaster
-          theme="dark"
-          position="top-right"
-          toastOptions={{
-            style: {
-              background: "#1c2133",
-              border: "1px solid #262c40",
-              color: "#e8ebf4",
-            },
-          }}
-        />
+        <Toaster theme={theme} position="top-right" richColors={false} />
       </BrowserRouter>
     </QueryClientProvider>
   );

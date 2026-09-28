@@ -7,13 +7,13 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: "border-foreground bg-primary text-foreground",
+        default: "border-foreground bg-primary text-bright-ink",
         secondary: "bg-elevated text-foreground",
         outline: "bg-card text-foreground",
-        success: "bg-success text-foreground",
+        success: "bg-success text-bright-ink",
         danger: "bg-danger text-white",
-        gold: "bg-gold text-foreground",
-        cyan: "bg-accent text-foreground",
+        gold: "bg-gold text-bright-ink",
+        cyan: "bg-accent text-bright-ink",
       },
     },
     defaultVariants: { variant: "default" },

@@ -1,17 +1,24 @@
 @import "tailwindcss";
 
-@theme {
-  /* Base Comic Canvas & Ink */
-  --color-background: #faf7ee;
-  --color-surface: #fffdf6;
-  --color-card: #ffffff;
-  --color-elevated: #f3efe0;
-  --color-border: #0d0d0d;
-  --color-foreground: #0d0d0d;
-  --color-muted: #6b6553;
-  --color-ink-gray: #e2dfd2;
+/* Dark mode is driven by a class on <html>, set before paint by the theme
+   bootstrap script, so the manual switcher and the OS preference can both
+   drive it (see src/stores/themeStore.ts). */
+@custom-variant dark (&:where(.dark, .dark *));
 
-  /* High-Impact Pop Colors */
+@theme {
+  /* Base Comic Canvas & Ink — indirection to the palettes below so a single
+     utility set (bg-card, text-muted, border-border…) serves both themes. */
+  --color-background: var(--c-background);
+  --color-surface: var(--c-surface);
+  --color-card: var(--c-card);
+  --color-elevated: var(--c-elevated);
+  --color-border: var(--c-border);
+  --color-foreground: var(--c-foreground);
+  --color-muted: var(--c-muted);
+  --color-ink-gray: var(--c-ink-gray);
+  --color-bright-ink: var(--c-bright-ink);
+
+  /* High-Impact Pop Colors — brand hues stay identical in both themes */
   --color-primary: #ffe600;
   --color-primary-hover: #ffd900;
   --color-accent: #00e5ff;
@@ -27,16 +34,16 @@
   --color-tier-5: #facc15;
 
   /* Hard comic drop shadows */
-  --shadow-comic-sm: 2px 2px 0px #0d0d0d;
-  --shadow-comic: 4px 4px 0px #0d0d0d;
-  --shadow-comic-lg: 8px 8px 0px #0d0d0d;
+  --shadow-comic-sm: 2px 2px 0px var(--c-comic-shadow);
+  --shadow-comic: 4px 4px 0px var(--c-comic-shadow);
+  --shadow-comic-lg: 8px 8px 0px var(--c-comic-shadow);
 
   /* Override default scale so legacy utilities stay hard-edged */
-  --shadow-sm: 2px 2px 0px #0d0d0d;
-  --shadow: 4px 4px 0px #0d0d0d;
-  --shadow-md: 4px 4px 0px #0d0d0d;
-  --shadow-lg: 6px 6px 0px #0d0d0d;
-  --shadow-xl: 8px 8px 0px #0d0d0d;
+  --shadow-sm: 2px 2px 0px var(--c-comic-shadow);
+  --shadow: 4px 4px 0px var(--c-comic-shadow);
+  --shadow-md: 4px 4px 0px var(--c-comic-shadow);
+  --shadow-lg: 6px 6px 0px var(--c-comic-shadow);
+  --shadow-xl: 8px 8px 0px var(--c-comic-shadow);
 
   /* Sharp paper-cut radii everywhere */
   --radius-md: 2px;
@@ -74,13 +81,53 @@
   }
 }
 
-html {
+/* ---------- Light (default): newsprint canvas ---------- */
+:root {
+  --c-background: #faf7ee;
+  --c-surface: #fffdf6;
+  --c-card: #ffffff;
+  --c-elevated: #f3efe0;
+  --c-border: #0d0d0d;
+  --c-foreground: #0d0d0d;
+  --c-muted: #6b6553;
+  --c-ink-gray: #e2dfd2;
+  --c-bright-ink: #0d0d0d;
+  --c-comic-shadow: #0d0d0d;
+  --c-halftone: rgba(13, 13, 13, 0.06);
+  --c-scrollbar-thumb: #0d0d0d;
+  --c-scrollbar-thumb-hover: #333333;
+  --c-scrollbar-track: #faf7ee;
+  --c-bubble-fill: #ffffff;
+  --c-gradient-ink: #0d0d0d;
+  --c-gradient-shadow: rgba(13, 13, 13, 0.9);
   color-scheme: light;
+}
+
+/* ---------- Dark: same comic language, ink swapped for night ---------- */
+.dark {
+  --c-background: #14161d;
+  --c-surface: #1b1e27;
+  --c-card: #222630;
+  --c-elevated: #2b3040;
+  --c-border: #3c4356;
+  --c-foreground: #edf0f7;
+  --c-muted: #a2a9bd;
+  --c-ink-gray: #2b3040;
+  --c-bright-ink: #0d0d0d;
+  --c-comic-shadow: #05070c;
+  --c-halftone: rgba(237, 240, 247, 0.05);
+  --c-scrollbar-thumb: #4a5164;
+  --c-scrollbar-thumb-hover: #6b7488;
+  --c-scrollbar-track: #14161d;
+  --c-bubble-fill: #222630;
+  --c-gradient-ink: #edf0f7;
+  --c-gradient-shadow: rgba(0, 0, 0, 0.9);
+  color-scheme: dark;
 }
 
 body {
   @apply bg-background text-foreground font-sans antialiased;
-  background-image: radial-gradient(rgba(13, 13, 13, 0.06) 1px, transparent 1px);
+  background-image: radial-gradient(var(--c-halftone) 1px, transparent 1px);
   background-size: 14px 14px;
   min-height: 100vh;
 }
@@ -94,14 +141,14 @@ body {
   height: 10px;
 }
 *::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--c-scrollbar-track);
 }
 *::-webkit-scrollbar-thumb {
-  background: #0d0d0d;
-  border: 2px solid #faf7ee;
+  background: var(--c-scrollbar-thumb);
+  border: 2px solid var(--c-scrollbar-track);
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #333;
+  background: var(--c-scrollbar-thumb-hover);
 }
 
 /* Comic title text — Bangers caps with ink outline */
@@ -110,10 +157,10 @@ body {
 }
 
 .text-gradient {
-  color: #0d0d0d;
+  color: var(--c-gradient-ink);
   text-shadow:
     2px 2px 0 #ffe600,
-    4px 4px 0 rgba(13, 13, 13, 0.9);
+    4px 4px 0 var(--c-gradient-shadow);
 }
 
 .card-hover {
@@ -124,16 +171,16 @@ body {
 }
 .card-hover:hover {
   transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0px #0d0d0d;
+  box-shadow: 6px 6px 0px var(--c-comic-shadow);
 }
 
 /* Speech bubble callout for synergies / hints */
 .speech-bubble {
   position: relative;
-  border: 2px solid #0d0d0d;
+  border: 2px solid var(--c-foreground);
   border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 2px 2px 0px #0d0d0d;
+  background: var(--c-bubble-fill);
+  box-shadow: 2px 2px 0px var(--c-comic-shadow);
 }
 .speech-bubble::after,
 .speech-bubble::before {
@@ -143,11 +190,11 @@ body {
   left: 18px;
   border-width: 10px 10px 0;
   border-style: solid;
-  border-color: #0d0d0d transparent;
+  border-color: var(--c-foreground) transparent;
 }
 .speech-bubble::before {
   bottom: -6px;
-  border-color: #ffffff transparent;
+  border-color: var(--c-bubble-fill) transparent;
   z-index: 1;
 }
 
