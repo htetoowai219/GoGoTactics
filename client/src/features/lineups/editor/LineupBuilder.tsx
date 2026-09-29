@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import {
   DragEndEvent,
   PointerSensor,
   TouchSensor,
+  pointerWithin,
   useDraggable,
   useDroppable,
   useSensor,
@@ -14,9 +15,13 @@ import {
 } from "@dnd-kit/core";
 import {
   ArrowLeft,
+  ArrowLeftRight,
   ChevronRight,
   Eraser,
+  LayoutGrid,
+  List,
   Loader2,
+  MoreHorizontal,
   Save,
   Shield,
   Sparkles,
@@ -25,6 +30,7 @@ import {
 } from "lucide-react";
 import { getApiErrorMessage, lineupsApi, uploadsApi } from "../../../api/endpoints";
 import { useGameData } from "../../../hooks/useGameData";
+import { usePointerFine } from "../../../hooks/usePointerFine";
 import type {
   Commander,
   Equipment,
@@ -34,10 +40,23 @@ import type {
   Hero,
   Season,
 } from "../../../types";
-import { HeroToken, RAINBOW_GRADIENT, costColor } from "../../../components/Board";
+import { BoardGrid, HeroToken, RAINBOW_GRADIENT, costColor } from "../../../components/Board";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../../components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../../components/ui/dropdown-menu";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
@@ -53,6 +72,14 @@ import {
   validateBoard,
   validateDetails,
 } from "./editorState";
+
+/** What the user has picked and is about to place on the board. */
+type Selection =
+  | { kind: "hero"; id: string }
+  | { kind: "item"; id: string }
+  | null;
+
+const PICKER_MODE_KEY = "gogotactics-editor-picker-mode";
 
 const ITEM_CATEGORIES = [
   { value: "all", label: "All" },
@@ -80,27 +107,31 @@ interface DragData {
 function DraggableChip({
   dragData,
   disabled,
+  dragEnabled,
   className,
   children,
 }: {
   dragData: DragData;
   disabled?: boolean;
+  dragEnabled: boolean;
   className?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `${dragData.kind}:${dragData.id}`,
     data: dragData,
-    disabled,
+    disabled: disabled || !dragEnabled,
   });
+  // On touch this renders a plain wrapper: no `touch-none`, no drag listeners,
+  // so a vertical scroll that starts on a chip still scrolls the page.
+  const inactive = disabled || !dragEnabled;
   return (
     <div
       ref={setNodeRef}
-      {...attributes}
-      {...listeners}
+      {...(inactive ? {} : attributes)}
+      {...(inactive ? {} : listeners)}
       className={cn(
-        "touch-none",
-        !disabled && "cursor-grab active:cursor-grabbing",
+        !inactive && "touch-none cursor-grab active:cursor-grabbing",
         isDragging && "opacity-40",
         className,
       )}
@@ -118,9 +149,22 @@ interface BuilderCellProps {
   onRemoveHero: () => void;
   onRemoveItem: (itemId: string) => void;
   onClick: () => void;
+  /** Highlights tiles while something is armed and the user is choosing a target. */
+  armed?: boolean;
+  dragEnabled: boolean;
 }
 
-function BuilderCell({ row, col, hero, items, onRemoveHero, onRemoveItem, onClick }: BuilderCellProps) {
+function BuilderCell({
+  row,
+  col,
+  hero,
+  items,
+  onRemoveHero,
+  onRemoveItem,
+  onClick,
+  armed,
+  dragEnabled,
+}: BuilderCellProps) {
   const { isOver, setNodeRef } = useDroppable({
     id: `cell:${row}:${col}`,
     data: { row, col },
@@ -128,16 +172,19 @@ function BuilderCell({ row, col, hero, items, onRemoveHero, onRemoveItem, onClic
   return (
     <div
       ref={setNodeRef}
+      data-board-cell=""
+      data-cell={`${row}-${col}`}
       onClick={onClick}
       className={cn(
         "group/cell relative flex aspect-square cursor-pointer items-center justify-center rounded-md border transition-colors",
         hero ? "border-primary/50 bg-primary/10" : "border-border/60 bg-background/40",
         isOver && "border-accent bg-accent/15",
+        armed && "border-accent/70 bg-accent/5",
       )}
     >
       {hero && (
         <>
-          <PlacedHero hero={hero} />
+          <PlacedHero hero={hero} dragEnabled={dragEnabled} />
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -158,7 +205,7 @@ function BuilderCell({ row, col, hero, items, onRemoveHero, onRemoveItem, onClic
                     e.stopPropagation();
                     onRemoveItem(eq._id);
                   }}
-                  className="grid h-3.5 w-3.5 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full border border-background bg-elevated shadow-sm transition-transform hover:scale-125"
+                  className="grid h-2.5 w-2.5 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full border border-background bg-elevated shadow-sm transition-transform hover:scale-125 sm:h-3.5 sm:w-3.5"
                 >
                   {eq.image ? (
                     <img src={eq.image} alt="" loading="lazy" className="h-full w-full object-cover" />
@@ -177,20 +224,27 @@ function BuilderCell({ row, col, hero, items, onRemoveHero, onRemoveItem, onClic
   );
 }
 
-function PlacedHero({ hero }: { hero: Hero }) {
+function PlacedHero({ hero, dragEnabled }: { hero: Hero; dragEnabled: boolean }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `placed-hero:${hero._id}`,
     data: { kind: "hero", id: hero._id } satisfies DragData,
+    disabled: !dragEnabled,
   });
   return (
+    // w-full gives the token a definite containing block to scale against.
+    // Clicks deliberately bubble so tapping a placed hero reaches the cell
+    // (and can trigger the swap prompt) instead of being swallowed here.
     <div
       ref={setNodeRef}
-      {...attributes}
-      {...listeners}
-      onClick={(e) => e.stopPropagation()}
-      className={cn("cursor-grab touch-none active:cursor-grabbing", isDragging && "opacity-30")}
+      {...(dragEnabled ? attributes : {})}
+      {...(dragEnabled ? listeners : {})}
+      className={cn(
+        "flex w-full items-center justify-center",
+        dragEnabled && "cursor-grab touch-none active:cursor-grabbing",
+        isDragging && "opacity-30",
+      )}
     >
-      <HeroToken hero={hero} />
+      <HeroToken hero={hero} size="cell" />
     </div>
   );
 }
@@ -250,7 +304,19 @@ export function LineupBuilder({
   const { data: gameData } = useGameData();
   const [state, setState] = useState<EditorState>(initialState ?? emptyEditorState);
   const [step, setStep] = useState<"board" | "details">("board");
-  const [selectedHeroId, setSelectedHeroId] = useState<string | null>(null);
+  const [selection, setSelection] = useState<Selection>(null);
+  const [pendingSwap, setPendingSwap] = useState<{
+    heroId: string;
+    row: number;
+    col: number;
+    occupantId: string;
+  } | null>(null);
+  const [pickerMode, setPickerMode] = useState<"compact" | "detailed">(() => {
+    if (typeof window === "undefined") return "compact";
+    return window.localStorage.getItem(PICKER_MODE_KEY) === "detailed"
+      ? "detailed"
+      : "compact";
+  });
   const [synergyFilter, setSynergyFilter] = useState("all");
   const [costFilter, setCostFilter] = useState("all");
   const [itemCategory, setItemCategory] = useState("all");
@@ -293,9 +359,17 @@ export function LineupBuilder({
 
   const update = (patch: Partial<EditorState>) => setState((s) => ({ ...s, ...patch }));
 
+  const changePickerMode = (mode: "compact" | "detailed") => {
+    setPickerMode(mode);
+    window.localStorage.setItem(PICKER_MODE_KEY, mode);
+  };
+
+  // Dragging is a fine-pointer affordance. Touch relies on tap-to-pick/tap-to-drop.
+  const dragEnabled = usePointerFine();
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
   );
 
   const heroAt = (row: number, col: number): string | null => {
@@ -316,7 +390,7 @@ export function LineupBuilder({
       placements[heroId] = { row, col };
       return { ...s, placements };
     });
-    setSelectedHeroId(null);
+    setSelection(null);
   };
 
   const removeAt = (row: number, col: number) => {
@@ -333,21 +407,50 @@ export function LineupBuilder({
     const targetHero = heroAt(row, col);
     if (!targetHero) {
       toast.error("Drop items onto a hero that's already on the board");
-      return;
+      return false;
+    }
+    const current = state.equipmentByHero[targetHero] ?? [];
+    if (current.length >= 3) {
+      toast.error(`${heroById.get(targetHero)?.name ?? "This hero"} already has 3 items`);
+      return false;
     }
     setState((s) => {
       const equipmentByHero: Record<string, string[]> = {};
       for (const [hid, list] of Object.entries(s.equipmentByHero)) {
         equipmentByHero[hid] = list.filter((id) => id !== itemId);
       }
-      const current = equipmentByHero[targetHero] ?? [];
-      if (current.length >= 3) {
-        toast.error(`${heroById.get(targetHero)?.name ?? "This hero"} already has 3 items`);
-        return s;
-      }
       equipmentByHero[targetHero] = [...current, itemId];
       return { ...s, equipmentByHero };
     });
+    return true;
+  };
+
+  const toggleSelection = (next: NonNullable<Selection>) => {
+    setSelection((cur) =>
+      cur && cur.kind === next.kind && cur.id === next.id ? null : next,
+    );
+  };
+
+  /** Tap-to-drop: act on the currently armed selection. */
+  const dropSelectionOn = (row: number, col: number) => {
+    if (!selection) return;
+    if (selection.kind === "item") {
+      if (attachItem(selection.id, row, col)) setSelection(null);
+      return;
+    }
+    const occupant = heroAt(row, col);
+    if (occupant && occupant !== selection.id) {
+      setPendingSwap({ heroId: selection.id, row, col, occupantId: occupant });
+      return;
+    }
+    placeHero(selection.id, row, col);
+  };
+
+  const confirmSwap = () => {
+    if (!pendingSwap) return;
+    const { heroId, row, col } = pendingSwap;
+    setPendingSwap(null);
+    placeHero(heroId, row, col);
   };
 
   const removeItemFrom = (heroId: string, itemId: string) => {
@@ -366,15 +469,23 @@ export function LineupBuilder({
     const data = active.data.current as DragData | undefined;
     const cell = over.data.current as { row: number; col: number } | undefined;
     if (!data || !cell) return;
-    if (data.kind === "hero") placeHero(data.id, cell.row, cell.col);
-    else attachItem(data.id, cell.row, cell.col);
+    if (data.kind === "hero") {
+      const occupant = heroAt(cell.row, cell.col);
+      if (occupant && occupant !== data.id) {
+        setPendingSwap({ heroId: data.id, row: cell.row, col: cell.col, occupantId: occupant });
+        return;
+      }
+      placeHero(data.id, cell.row, cell.col);
+    } else {
+      attachItem(data.id, cell.row, cell.col);
+    }
   };
 
   const clearBoard = () => {
     if (Object.keys(state.placements).length === 0) return;
     if (window.confirm("Clear all placed heroes and their items?")) {
       update({ placements: {}, equipmentByHero: {} });
-      setSelectedHeroId(null);
+      setSelection(null);
     }
   };
 
@@ -483,6 +594,16 @@ export function LineupBuilder({
     return map;
   }, [state.equipmentByHero]);
 
+  const itemById = useMemo(
+    () => new Map((gameData?.equipment ?? []).map((e) => [e._id, e])),
+    [gameData],
+  );
+
+  const selectionLabel = (sel: NonNullable<Selection>) =>
+    sel.kind === "hero"
+      ? (heroById.get(sel.id)?.name ?? "Hero")
+      : (itemById.get(sel.id)?.name ?? "Item");
+
   if (step === "details") {
     return (
       <DetailsStep
@@ -500,104 +621,174 @@ export function LineupBuilder({
   }
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      {/* Top bar */}
+    <DndContext
+      sensors={sensors}
+      onDragEnd={handleDragEnd}
+      // Drop wherever the pointer is: item chips are wider than a tile, and
+      // rect-based collision would pick a neighbouring cell.
+      collisionDetection={pointerWithin}
+    >
+      {/* Top bar — two compact rows on mobile, one row from lg up */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => history.back()}>
-          <ArrowLeft /> Back
+        <Button variant="ghost" size="sm" onClick={() => history.back()} className="shrink-0">
+          <ArrowLeft /> <span className="hidden sm:inline">Back</span>
         </Button>
-        <Select value={state.seasonId} onValueChange={(v) => update({ seasonId: v })}>
-          <SelectTrigger className="h-9 w-40">
-            <SelectValue placeholder="Season" />
-          </SelectTrigger>
-          <SelectContent>
-            {(gameData?.seasons ?? []).map((s: Season) => (
-              <SelectItem key={s._id} value={s._id}>
-                {s.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={state.gameModeId} onValueChange={(v) => update({ gameModeId: v })}>
-          <SelectTrigger className="h-9 w-36">
-            <SelectValue placeholder="Mode" />
-          </SelectTrigger>
-          <SelectContent>
-            {(gameData?.gameModes ?? []).map((m: GameMode) => (
-              <SelectItem key={m._id} value={m._id}>
-                {m.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="order-3 flex min-w-0 flex-1 basis-full gap-2 sm:order-none sm:basis-auto">
+          <Select value={state.seasonId} onValueChange={(v) => update({ seasonId: v })}>
+            <SelectTrigger className="h-9 min-w-0 flex-1 sm:w-40 sm:flex-none">
+              <SelectValue placeholder="Season" />
+            </SelectTrigger>
+            <SelectContent>
+              {(gameData?.seasons ?? []).map((s: Season) => (
+                <SelectItem key={s._id} value={s._id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={state.gameModeId} onValueChange={(v) => update({ gameModeId: v })}>
+            <SelectTrigger className="h-9 min-w-0 flex-1 sm:w-36 sm:flex-none">
+              <SelectValue placeholder="Mode" />
+            </SelectTrigger>
+            <SelectContent>
+              {(gameData?.gameModes ?? []).map((m: GameMode) => (
+                <SelectItem key={m._id} value={m._id}>
+                  {m.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <span className="ml-auto flex items-center gap-2 text-sm">
           <span className="rounded-none bg-primary px-2.5 py-1 font-bold uppercase text-bright-ink border-2 border-foreground shadow-comic-sm">
             {Object.keys(state.placements).length}/{(gameData?.heroes ?? []).length > 0 ? heroesOnBoardCap(rows, cols) : "?"} on board
           </span>
         </span>
-        <Button variant="secondary" size="sm" onClick={clearBoard}>
-          <Eraser /> Clear
-        </Button>
-        <Button variant="secondary" size="sm" onClick={() => void importLineup()}>
-          <Upload /> Import
-        </Button>
+        {/* Clear/Import collapse into an overflow menu on mobile */}
+        <div className="hidden items-center gap-2 lg:flex">
+          <Button variant="secondary" size="sm" onClick={clearBoard}>
+            <Eraser /> Clear
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => void importLineup()}>
+            <Upload /> Import
+          </Button>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" size="sm" className="lg:hidden" aria-label="More actions">
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={clearBoard}>
+              <Eraser /> Clear board
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => void importLineup()}>
+              <Upload /> Import lineup
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button size="sm" onClick={onSaveClicked}>
           <Save /> Save
         </Button>
       </div>
 
+      {/* Armed selection bar: tells the user what a board tap will do right now */}
+      {selection && (
+        <div className="mb-3 flex items-center gap-2 rounded-lg border-2 border-accent bg-accent/10 px-3 py-2">
+          {selection.kind === "hero" ? (
+            <HeroToken hero={heroById.get(selection.id)} size="sm" />
+          ) : (
+            <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-elevated">
+              {itemById.get(selection.id)?.image ? (
+                <img
+                  src={itemById.get(selection.id)!.image!}
+                  alt=""
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-xs font-black text-muted">
+                  {itemById.get(selection.id)?.name.slice(0, 1)}
+                </span>
+              )}
+            </span>
+          )}
+          <p className="min-w-0 flex-1 truncate text-xs">
+            <strong>{selectionLabel(selection)}</strong> selected —{" "}
+            {selection.kind === "hero" ? "tap a tile to place it" : "tap a hero to equip it"}
+          </p>
+          <button
+            onClick={() => setSelection(null)}
+            className="shrink-0 cursor-pointer text-muted hover:text-danger"
+            aria-label="Cancel selection"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        {/* [1,1] Board */}
-        <Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="overflow-x-auto pb-2">
-              <div
-                className="mx-auto grid w-max min-w-full gap-1.5 rounded-xl border border-border bg-gradient-to-b from-surface to-card p-3 sm:gap-2 sm:p-4"
-                style={{
-                  gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-                  maxWidth: cols * 84,
-                }}
-              >
-                {Array.from({ length: rows }, (_, row) =>
-                  Array.from({ length: cols }, (_, col) => {
-                    const hid = heroAt(row, col);
-                    const hero = hid ? heroById.get(hid) : undefined;
-                    return (
-                      <BuilderCell
-                        key={`${row}-${col}`}
-                        row={row}
-                        col={col}
-                        hero={hero}
-                        items={
-                          hid
-                            ? (state.equipmentByHero[hid] ?? [])
-                                .map((id) => (gameData?.equipment ?? []).find((e) => e._id === id))
-                                .filter(Boolean as unknown as (v: Equipment | undefined) => v is Equipment)
-                            : []
-                        }
-                        onRemoveHero={() => removeAt(row, col)}
-                        onRemoveItem={(itemId) => hid && removeItemFrom(hid, itemId)}
-                        onClick={() => selectedHeroId && placeHero(selectedHeroId, row, col)}
-                      />
-                    );
-                  }),
-                )}
-              </div>
-            </div>
-            <p className="mt-1 text-center text-[11px] text-muted">
-              Front line at the top · drag heroes &amp; items onto tiles · click an item dot to remove it
+        {/* [1,1] Board — below synergies on mobile, left column on desktop */}
+        <Card className="order-2 min-w-0 lg:order-1">
+          <CardContent className="p-2 sm:p-4">
+            <BoardGrid rows={rows} cols={cols} className="mx-auto">
+              {Array.from({ length: rows }, (_, row) =>
+                Array.from({ length: cols }, (_, col) => {
+                  const hid = heroAt(row, col);
+                  const hero = hid ? heroById.get(hid) : undefined;
+                  return (
+                    <BuilderCell
+                      key={`${row}-${col}`}
+                      row={row}
+                      col={col}
+                      hero={hero}
+                      items={
+                        hid
+                          ? (state.equipmentByHero[hid] ?? [])
+                              .map((id) => (gameData?.equipment ?? []).find((e) => e._id === id))
+                              .filter(Boolean as unknown as (v: Equipment | undefined) => v is Equipment)
+                          : []
+                      }
+                      onRemoveHero={() => removeAt(row, col)}
+                      onRemoveItem={(itemId) => hid && removeItemFrom(hid, itemId)}
+                      onClick={() => dropSelectionOn(row, col)}
+                      armed={
+                        selection
+                          ? selection.kind === "item"
+                            ? Boolean(hero)
+                            : true
+                          : false
+                      }
+                      dragEnabled={dragEnabled}
+                    />
+                  );
+                }),
+              )}
+            </BoardGrid>
+            <p className="mt-2 text-center text-[11px] text-muted">
+              Front line at the top · click an item dot to remove it
+              {dragEnabled ? " · drag heroes & items onto tiles" : " · tap a hero or item, then tap a tile"}
             </p>
           </CardContent>
         </Card>
 
-        {/* [1,2] Synergies */}
-        <Card>
-          <CardContent className="flex max-h-[420px] flex-col p-3 sm:p-4">
+        {/* [1,2] Synergies — above the board on mobile, right column on desktop.
+            On phones the card is hidden until something is on the board, so an
+            empty board doesn't greet you with a placeholder above it. */}
+        <Card
+          data-synergies
+          className={cn(
+            "order-1 min-w-0 lg:order-2",
+            synergies.length === 0 && "hidden lg:block",
+          )}
+        >
+          <CardContent className="flex flex-col p-3 lg:max-h-[420px] sm:p-4">
             <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted">
               <Sparkles className="h-3.5 w-3.5" /> Synergies
             </p>
-            <div className="space-y-1.5 overflow-y-auto pr-1">
+            <div className="space-y-1.5 overflow-y-auto lg:pr-1">
               {synergies.length === 0 && (
                 <p className="py-6 text-center text-sm text-muted">
                   Place heroes to see active synergies here.
@@ -624,7 +815,7 @@ export function LineupBuilder({
         </Card>
 
         {/* [2,1] Palette tabs */}
-        <Card className="lg:col-span-1">
+        <Card className="min-w-0 lg:order-3 lg:col-span-1">
           <CardContent className="p-3 sm:p-4">
             <Tabs defaultValue="heroes">
               <TabsList className="mb-3 w-full">
@@ -633,9 +824,9 @@ export function LineupBuilder({
               </TabsList>
 
               <TabsContent value="heroes" className="mt-0 space-y-2">
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   <Select value={synergyFilter} onValueChange={setSynergyFilter}>
-                    <SelectTrigger className="h-8 flex-1 text-xs">
+                    <SelectTrigger className="h-8 min-w-0 flex-1 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -648,7 +839,7 @@ export function LineupBuilder({
                     </SelectContent>
                   </Select>
                   <Select value={costFilter} onValueChange={setCostFilter}>
-                    <SelectTrigger className="h-8 w-28 text-xs">
+                    <SelectTrigger className="h-8 w-28 shrink-0 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -661,52 +852,126 @@ export function LineupBuilder({
                       <SelectItem value="6">6+ rainbow</SelectItem>
                     </SelectContent>
                   </Select>
+                  {/* Icon-only vs rows: defaults to icons on phones, rows on desktop */}
+                  <div className="hidden shrink-0 gap-0.5 rounded-lg border border-border p-0.5 lg:flex">
+                    <button
+                      onClick={() => changePickerMode("compact")}
+                      aria-label="Icon grid view"
+                      aria-pressed={pickerMode === "compact"}
+                      className={cn(
+                        "grid h-6 w-7 cursor-pointer place-items-center rounded-md",
+                        pickerMode === "compact"
+                          ? "bg-primary text-bright-ink"
+                          : "text-muted hover:text-foreground",
+                      )}
+                    >
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => changePickerMode("detailed")}
+                      aria-label="Detailed list view"
+                      aria-pressed={pickerMode === "detailed"}
+                      className={cn(
+                        "grid h-6 w-7 cursor-pointer place-items-center rounded-md",
+                        pickerMode === "detailed"
+                          ? "bg-primary text-bright-ink"
+                          : "text-muted hover:text-foreground",
+                      )}
+                    >
+                      <List className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
 
-                <div className="grid max-h-[300px] grid-cols-2 gap-1.5 overflow-y-auto pr-1 xl:grid-cols-3">
-                  {filteredHeroes.map((hero: Hero) => {
-                    const placed = Boolean(state.placements[hero._id]);
-                    return (
-                      <div key={hero._id} className="relative">
-                        <DraggableChip dragData={{ kind: "hero", id: hero._id }}>
-                          <button
-                            onClick={() =>
-                              setSelectedHeroId(selectedHeroId === hero._id ? null : hero._id)
-                            }
-                            className={cn(
-                              "w-full rounded-lg border p-1.5 text-left transition-colors",
-                              placed
-                                ? "border-primary/50 bg-primary/10"
-                                : "border-border bg-surface hover:bg-elevated",
-                              selectedHeroId === hero._id && "ring-2 ring-accent",
-                            )}
+                {pickerMode === "compact" ? (
+                  <div className="grid grid-cols-6 gap-1 sm:grid-cols-8 xl:grid-cols-8">
+                    {filteredHeroes.map((hero: Hero) => {
+                      const placed = Boolean(state.placements[hero._id]);
+                      const selected =
+                        selection?.kind === "hero" && selection.id === hero._id;
+                      return (
+                        <div key={hero._id} className="relative">
+                          <DraggableChip
+                            dragData={{ kind: "hero", id: hero._id }}
+                            dragEnabled={dragEnabled}
                           >
-                            <span className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => toggleSelection({ kind: "hero", id: hero._id })}
+                              title={`${hero.name} · cost ${hero.cost}`}
+                              aria-label={hero.name}
+                              aria-pressed={selected}
+                              className={cn(
+                                "flex w-full cursor-pointer flex-col items-center gap-0.5 rounded-lg border p-1 transition-colors",
+                                placed
+                                  ? "border-primary/50 bg-primary/10"
+                                  : "border-border bg-surface hover:bg-elevated",
+                                selected && "ring-2 ring-accent",
+                              )}
+                            >
                               <HeroToken hero={hero} size="sm" />
-                              <span className="min-w-0">
-                                <span className="block truncate text-[11px] font-medium leading-tight">
-                                  {hero.name}
-                                </span>
-                                <span className="block text-[9px] capitalize text-muted">
-                                  cost {hero.cost}
-                                  {heroRoles(hero).length > 0 &&
-                                    ` · ${heroRoles(hero)
-                                      .map((s) => s.name)
-                                      .join(" / ")}`}
+                              <span className="w-full truncate text-center text-[9px] leading-tight text-muted">
+                                {hero.name}
+                              </span>
+                            </button>
+                          </DraggableChip>
+                        </div>
+                      );
+                    })}
+                    {filteredHeroes.length === 0 && (
+                      <p className="col-span-full py-6 text-center text-sm text-muted">
+                        No heroes match these filters.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid max-h-[300px] grid-cols-2 gap-1.5 overflow-y-auto pr-1 xl:grid-cols-3">
+                    {filteredHeroes.map((hero: Hero) => {
+                      const placed = Boolean(state.placements[hero._id]);
+                      const selected =
+                        selection?.kind === "hero" && selection.id === hero._id;
+                      return (
+                        <div key={hero._id} className="relative">
+                          <DraggableChip
+                            dragData={{ kind: "hero", id: hero._id }}
+                            dragEnabled={dragEnabled}
+                          >
+                            <button
+                              onClick={() => toggleSelection({ kind: "hero", id: hero._id })}
+                              className={cn(
+                                "w-full cursor-pointer rounded-lg border p-1.5 text-left transition-colors",
+                                placed
+                                  ? "border-primary/50 bg-primary/10"
+                                  : "border-border bg-surface hover:bg-elevated",
+                                selected && "ring-2 ring-accent",
+                              )}
+                            >
+                              <span className="flex items-center gap-1.5">
+                                <HeroToken hero={hero} size="sm" />
+                                <span className="min-w-0">
+                                  <span className="block truncate text-[11px] font-medium leading-tight">
+                                    {hero.name}
+                                  </span>
+                                  <span className="block text-[9px] capitalize text-muted">
+                                    cost {hero.cost}
+                                    {heroRoles(hero).length > 0 &&
+                                      ` · ${heroRoles(hero)
+                                        .map((s) => s.name)
+                                        .join(" / ")}`}
+                                  </span>
                                 </span>
                               </span>
-                            </span>
-                          </button>
-                        </DraggableChip>
-                      </div>
-                    );
-                  })}
-                  {filteredHeroes.length === 0 && (
-                    <p className="col-span-full py-6 text-center text-sm text-muted">
-                      No heroes match these filters.
-                    </p>
-                  )}
-                </div>
+                            </button>
+                          </DraggableChip>
+                        </div>
+                      );
+                    })}
+                    {filteredHeroes.length === 0 && (
+                      <p className="col-span-full py-6 text-center text-sm text-muted">
+                        No heroes match these filters.
+                      </p>
+                    )}
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="items" className="mt-0 space-y-2">
@@ -723,17 +988,25 @@ export function LineupBuilder({
                   </SelectContent>
                 </Select>
 
-                <div className="grid max-h-[300px] grid-cols-1 gap-1.5 overflow-y-auto pr-1 xl:grid-cols-2">
+                <div className="grid grid-cols-1 gap-1.5 xl:grid-cols-2 xl:max-h-[300px] xl:overflow-y-auto xl:pr-1">
                   {filteredItems.map((eq: Equipment) => {
                     const holder = itemUsedBy.get(eq._id);
+                    const selected =
+                      selection?.kind === "item" && selection.id === eq._id;
                     return (
-                      <DraggableChip key={eq._id} dragData={{ kind: "item", id: eq._id }}>
-                        <div
+                      <DraggableChip
+                        key={eq._id}
+                        dragData={{ kind: "item", id: eq._id }}
+                        dragEnabled={dragEnabled}
+                      >
+                        <button
+                          onClick={() => toggleSelection({ kind: "item", id: eq._id })}
                           className={cn(
-                            "flex w-full items-center gap-2 rounded-lg border p-1.5",
+                            "flex w-full cursor-pointer items-center gap-2 rounded-lg border p-1.5 text-left",
                             holder
                               ? "border-primary/40 bg-primary/10"
                               : "border-border bg-surface hover:bg-elevated",
+                            selected && "ring-2 ring-accent",
                           )}
                         >
                           <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-elevated">
@@ -753,7 +1026,7 @@ export function LineupBuilder({
                                 : (eq.category ?? "regular").replace(/-/g, " ")}
                             </span>
                           </span>
-                        </div>
+                        </button>
                       </DraggableChip>
                     );
                   })}
@@ -765,18 +1038,11 @@ export function LineupBuilder({
                 </div>
               </TabsContent>
             </Tabs>
-
-            {selectedHeroId && (
-              <p className="mt-2 rounded-lg bg-accent/10 px-3 py-2 text-xs text-cyan-200">
-                Tap any tile to place{" "}
-                <strong>{heroById.get(selectedHeroId)?.name}</strong>
-              </p>
-            )}
           </CardContent>
         </Card>
 
         {/* [2,2] Commander + gogo cards */}
-        <Card>
+        <Card className="min-w-0 lg:order-4">
           <CardContent className="flex h-full flex-col gap-2 p-3 sm:p-4">
             <Button variant="secondary" className="justify-start" onClick={() => setCommanderOpen(true)}>
               <Shield /> Commanders
@@ -882,6 +1148,36 @@ export function LineupBuilder({
         }}
         onRemove={(id) => update({ gogoCards: state.gogoCards.filter((c) => c !== id) })}
       />
+
+      {/* Confirming a swap instead of silently overwriting a placed hero */}
+      <Dialog
+        open={pendingSwap !== null}
+        onOpenChange={(open) => !open && setPendingSwap(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Swap these heroes?</DialogTitle>
+            <DialogDescription>
+              {pendingSwap && (
+                <>
+                  <strong>{heroById.get(pendingSwap.heroId)?.name}</strong> is already on the
+                  board. Placing it here will send{" "}
+                  <strong>{heroById.get(pendingSwap.occupantId)?.name}</strong> back to the hero
+                  list.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setPendingSwap(null)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmSwap}>
+              <ArrowLeftRight /> Swap heroes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DndContext>
   );
 }

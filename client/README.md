@@ -87,6 +87,41 @@ Three appearance options — **Light**, **Dark**, **System** — in the footer
 
 Clear both `localStorage` keys in devtools to get back to the defaults.
 
+## Lineup editor on mobile
+
+The board in `src/features/lineups/editor/LineupBuilder.tsx` is built for phones
+first. The read-only board in `src/components/Board.tsx` shares the same
+`BoardGrid` and `HeroToken` components, so the two never drift apart.
+
+- **No horizontal scrolling.** `BoardGrid` is `w-full` with
+  `minmax(0, 1fr)` columns and is only *capped* at `cols × 84`px on wide
+  screens. Width is driven by the container, never by the placed heroes — the
+  old `w-max` grid grew as soon as a tile had a hero in it.
+- **Tokens scale with their tile.** `HeroToken size="cell"` is
+  `min(86%, 2.75rem)`, so a token can shrink on a 320px phone but still
+  renders at exactly 44px on desktop. It needs a parent with a definite width to
+  resolve that percentage against, which is why `PlacedHero` renders `w-full`.
+- **Tap first, drag second.** `usePointerFine()` (`src/hooks/usePointerFine.ts`)
+  watches `(pointer: fine)`. Drag-and-drop is enabled only for mouse/trackpad;
+  on touch the chips carry no `touch-none`, so scrolling from a chip works.
+- **Armed selection.** `Selection` is `{ kind: "hero" | "item", id } | null`.
+  Tapping a hero or item arms it, tapping a tile drops it, and the bar above the
+  board shows what the next tap will do. Items go on heroes only.
+- **Swaps confirm.** Tapping or dropping onto an occupied tile sets
+  `pendingSwap` and opens a dialog; cancelling keeps the hero armed.
+- **`pointerWithin` collision detection** — item chips are wider than a tile, so
+  rect-based collision would drop onto a neighbouring cell.
+- The synergies card sits above the board on phones and in the right column on
+  desktop. On phones it is `hidden` until at least one synergy is active —
+  otherwise an empty board greets you with a placeholder above the thing you
+  came to use. Desktop keeps the placeholder, since the column is empty anyway.
+- Picker view mode (`gogotactics-editor-picker-mode`: `compact` \| `detailed`)
+  is remembered per browser; phones default to the icon grid.
+
+The editor exposes `data-board-grid`, `data-board-cell`, `data-cell`,
+`data-hero-token`, `data-synergies` and `data-hero` attributes for automated UI
+checks.
+
 ## Structure
 
 ```
@@ -95,7 +130,7 @@ src/
 ├── lib/                  # Utils + runtime config resolver
 ├── components/           # Shared UI (board, cards, comments, theme switcher)
 │   └── ui/               # Primitives (button, dialog, select, tabs, checkbox…)
-├── features/lineups/editor/  # Interactive lineup builder
+├── features/lineups/editor/  # Interactive lineup builder (mobile-first)
 ├── layouts/              # RootLayout, AdminLayout, route guards
 ├── pages/                # Route pages (+ admin/, incl. HowToUsePage)
 ├── stores/               # Zustand stores (auth, theme)
