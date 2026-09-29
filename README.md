@@ -440,7 +440,12 @@ All scripts run inside `client/` or `server/` — nothing runs from the repo roo
 - **First-visit welcome** — a short intro dialog on the homepage with a link to the manual and a "Don't show this again" checkbox
 
 ### Authenticated
-- Lineup builder: pick season → mode (dynamic board size) → commanders & gogo cards → place heroes via drag-and-drop → assign equipment → auto-computed synergies → strategy markdown → publish or save draft
+- Lineup builder: pick season → mode (dynamic board size) → commanders & gogo cards → place heroes → assign equipment → auto-computed synergies → strategy markdown → publish or save draft
+- **Mobile-first placement** — the board is fluid (it never scrolls sideways as heroes are added), hero tokens scale with their tile, and the synergies panel sits above the board on phones (hidden until the first hero is placed, so an empty board stays uncluttered)
+  - **Tap to place**: tap a hero or item to arm it, then tap a target tile. An armed-state bar above the board shows what the next tap will do and can be cancelled
+  - **Drag and drop on desktop** (mouse/trackpad, i.e. fine pointers). On touch, chips no longer swallow scroll gestures
+  - Tapping or dropping onto an occupied tile opens a confirmation dialog before swapping the two heroes
+  - Hero picker has an icon-only grid and a detailed row view (remembered per browser; icon grid is the phone default)
 - Edit/delete own lineups, like/save, rate 1–5 stars, comment, follow, report
 
 ### Admin (`/admin`)
